@@ -15,7 +15,8 @@
   "contributes": {
     "configurationDefaults": {
       "[paison]": {
-        "editor.unicodeHighlight.ambiguousCharacters": false
+        "editor.unicodeHighlight.ambiguousCharacters": false,
+        "editor.unicodeHighlight.invisibleCharacters": false
       }
     },
     "languages": [

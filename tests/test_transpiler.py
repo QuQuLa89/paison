@@ -122,6 +122,39 @@ class TranspilerTests(unittest.TestCase):
         source = f"値 ＝ ３．１４ # {content}"
         self.assertEqual(transpile(source), f"値 = 3.14 # {content}")
 
+    def test_full_width_space_in_expressions(self):
+        source = (
+            "かんすう　合計（左,　右）：\n"
+            "　かえす　左　＋　右\n"
+            "値　＝　合計　（１,　２）　# コメント　保持\n"
+            "もし　値　＝＝　３　かつ　しん　ならば：\n"
+            "　しゅつりょく　（“苗字　名前”,　値）　"
+        )
+        expected = (
+            "def 合計(左, 右):\n"
+            "    return 左 + 右\n"
+            "値 = 合計 (1, 2) # コメント　保持\n"
+            "if 値 == 3 and True:\n"
+            '    print ("苗字　名前", 値) '
+        )
+        self.assertEqual(transpile(source), expected)
+        self.assertEqual(self.execute(source), "苗字　名前 3\n")
+        self.assertEqual(transpile("# コメント　保持"), "# コメント　保持")
+
+    def test_full_width_spaces_in_literals_are_preserved(self):
+        for left, right in (
+            ('"', '"'),
+            ("'", "'"),
+            ('"""', '"""'),
+            ("'''", "'''"),
+            ("“", "”"),
+            ("‘", "’"),
+        ):
+            with self.subTest(left=left):
+                content = "　苗字　名前　"
+                source = f"しゅつりょく　（{left}{content}{right}）"
+                self.assertEqual(self.execute(source), content + "\n")
+
     def test_elif_and_full_width_indentation(self):
         source = (
             "値 ＝ 2\n"

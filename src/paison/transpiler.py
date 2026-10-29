@@ -95,7 +95,9 @@ def transpile(source: str) -> str:
         indent = indent_match.group()
         code, marker, comment = line[len(indent) :].partition("#")
         trailing_space = code[len(code.rstrip()) :]
+        trailing_space = trailing_space.replace("\u3000", " ")
         code = code.rstrip().replace("！＝", "!=").translate(_SYMBOLS)
+        code = code.replace("\u3000", " ")
         code = re.sub(r"(?<=\s)(?:かつ|あんど|アンド)(?=\s)", "and", code)
         code = re.sub(r"(?<=\s)(?:または|おあ|オア)(?=\s)", "or", code)
         code = re.sub(
