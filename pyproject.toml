@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paison"
+version = "0.1.0"
+description = "A Japanese programming language based on Python"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+paison = "paison.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
