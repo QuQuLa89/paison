@@ -257,6 +257,106 @@ class TranspilerTests(unittest.TestCase):
         comment = "# “かず（1）” ‘ながさ（［］）’"
         self.assertEqual(transpile(comment), comment)
 
+    def test_pythonic_aliases(self):
+        sources = (
+            "でふ 説明（値）：\n"
+            "　いふ とぅるー あんど 値 ＞ 0：\n"
+            "　　りたーん すとりんぐ（いんと（値） ＋ れん（りすと（“ab”）））\n"
+            "　えりふ ふぉるす おあ 値 ＝＝ 0 ならば：\n"
+            "　　りたーん “ゼロ”\n"
+            "　えるす：\n"
+            "　　りたーん “負”\n"
+            "数 を ［1, 0, -1］ で ふぉー：\n"
+            "　ぷりんと（説明（数））\n"
+            "回数 ＝ 0\n"
+            "回数 ＜ 2 のあいだ ほわいる：\n"
+            "　回数 ＝ 回数 ＋ 1\n"
+            "とらい：\n"
+            "　いんと（“数字ではありません”）\n"
+            "えくせぷと：\n"
+            "　ぷりんと（回数）",
+            "デフ 説明（値）：\n"
+            "　イフ トゥルー アンド 値 ＞ 0：\n"
+            "　　リターン ストリング（イント（値） ＋ レン（リスト（“ab”）））\n"
+            "　エリフ フォルス オア 値 ＝＝ 0 ならば：\n"
+            "　　リターン “ゼロ”\n"
+            "　エルス：\n"
+            "　　リターン “負”\n"
+            "数 を ［1, 0, -1］ で フォー：\n"
+            "　プリント（説明（数））\n"
+            "回数 ＝ 0\n"
+            "回数 ＜ 2 のあいだ ホワイル：\n"
+            "　回数 ＝ 回数 ＋ 1\n"
+            "トライ：\n"
+            "　イント（“数字ではありません”）\n"
+            "エクセプト：\n"
+            "　プリント（回数）",
+        )
+        expected = (
+            "def 説明(値):\n"
+            "    if True and 値 > 0:\n"
+            '        return str(int(値) + len(list("ab")))\n'
+            "    elif False or 値 == 0:\n"
+            '        return "ゼロ"\n'
+            "    else:\n"
+            '        return "負"\n'
+            "for 数 in [1, 0, -1]:\n"
+            "    print(説明(数))\n"
+            "回数 = 0\n"
+            "while 回数 < 2:\n"
+            "    回数 = 回数 + 1\n"
+            "try:\n"
+            '    int("数字ではありません")\n'
+            "except Exception:\n"
+            "    print(回数)"
+        )
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertEqual(transpile(source), expected)
+                self.assertEqual(self.execute(source), "3\nゼロ\n負\n2\n")
+
+    def test_pythonic_input_aliases_and_mixed_syntax(self):
+        for name in ("いんぷっと", "インプット"):
+            with self.subTest(name=name):
+                source = (
+                    "もし とぅるー アンド しん ならば：\n"
+                    f"　しゅつりょく（イント（{name}（“数：”）））"
+                )
+                with patch("builtins.input", return_value="7") as read_input:
+                    self.assertEqual(self.execute(source), "7\n")
+                read_input.assert_called_once_with("数：")
+
+    def test_pythonic_alias_preservation(self):
+        content = (
+            "でふ デフ りたーん リターン いふ イフ えりふ エリフ えるす エルス "
+            "ふぉー フォー ほわいる ホワイル とらい トライ えくせぷと エクセプト "
+            "とぅるー トゥルー ふぉるす フォルス あんど アンド おあ オア "
+            "ぷりんと プリント いんぷっと インプット いんと イント "
+            "すとりんぐ ストリング れん レン りすと リスト"
+        )
+        for name in content.split():
+            with self.subTest(name=name):
+                for identifier in (f"独自_{name}", f"{name}の値"):
+                    self.assertEqual(
+                        transpile(f"{identifier}（1）"), f"{identifier}(1)"
+                    )
+        for left, right in (
+            ('"', '"'),
+            ("'", "'"),
+            ('"""', '"""'),
+            ("'''", "'''"),
+            ("“", "”"),
+            ("‘", "’"),
+        ):
+            with self.subTest(left=left):
+                self.assertEqual(
+                    self.execute(f"プリント（{left}{content}{right}）"),
+                    content + "\n",
+                )
+        comment = f"# {content}"
+        self.assertEqual(transpile(comment), comment)
+        self.assertEqual(transpile(f"プリント（1） {comment}"), f"print(1) {comment}")
+
     def test_inline_builtins_and_identifier_boundaries(self):
         source = (
             "しゅつりょく（もじ(かず（“42”） ＋ 1)）\n"
@@ -285,6 +385,33 @@ class TranspilerTests(unittest.TestCase):
 
 
 class RunnerTests(unittest.TestCase):
+    def test_pythonic_builtin_references(self):
+        for aliases in (
+            ("ぷりんと", "いんぷっと", "いんと", "すとりんぐ", "れん", "りすと"),
+            ("プリント", "インプット", "イント", "ストリング", "レン", "リスト"),
+        ):
+            with self.subTest(aliases=aliases):
+                output_alias, input_alias, int_alias, str_alias, len_alias, list_alias = (
+                    aliases
+                )
+                source = (
+                    f"出力 ＝ {output_alias}\n"
+                    f"入力 ＝ {input_alias}\n"
+                    f"整数 ＝ {int_alias}\n"
+                    f"文字列 ＝ {str_alias}\n"
+                    f"長さ ＝ {len_alias}\n"
+                    f"配列 ＝ {list_alias}\n"
+                    "でふ 表示（）：\n"
+                    "　出力（文字列（整数（入力（“数：”）） ＋ 長さ（配列（“ab”））））\n"
+                    "表示（）"
+                )
+                output = io.StringIO()
+                with patch("builtins.input", return_value="5") as read_input:
+                    with redirect_stdout(output):
+                        run_code(source)
+                self.assertEqual(output.getvalue(), "7\n")
+                read_input.assert_called_once_with("数：")
+
     def test_japanese_builtin_aliases(self):
         source = (
             "出力 ＝ しゅつりょく\n"

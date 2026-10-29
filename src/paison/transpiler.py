@@ -22,26 +22,41 @@ _SYMBOLS = str.maketrans(
 )
 _BUILTINS = {
     "しゅつりょく": "print",
+    "ぷりんと": "print",
+    "プリント": "print",
     "かず": "int",
+    "いんと": "int",
+    "イント": "int",
     "もじ": "str",
+    "すとりんぐ": "str",
+    "ストリング": "str",
     "ながさ": "len",
+    "れん": "len",
+    "レン": "len",
     "はいれつ": "list",
+    "りすと": "list",
+    "リスト": "list",
     "にゅうりょく": "input",
+    "いんぷっと": "input",
+    "インプット": "input",
 }
 _BUILTIN_CALLS = re.compile(r"(?<!\w)(" + "|".join(_BUILTINS) + r")(?=\s*\()")
 _STATEMENTS = (
-    (r"もし\s+(.+?)\s*ならば\s*:", r"if \1:"),
-    (r"それとも\s+(.+?)\s*ならば\s*:", r"elif \1:"),
-    (r"ちがうなら\s*:", "else:"),
-    (r"(\w+)\s*を\s*(.+?)\s*で\s*くりかえす\s*:", r"for \1 in \2:"),
-    (r"(.+?)\s*のあいだ\s*くりかえす\s*:", r"while \1:"),
+    (r"(?:もし|いふ|イフ)\s+(.+?)(?:\s*ならば)?\s*:", r"if \1:"),
+    (r"(?:それとも|えりふ|エリフ)\s+(.+?)(?:\s*ならば)?\s*:", r"elif \1:"),
+    (r"(?:ちがうなら|えるす|エルス)\s*:", "else:"),
     (
-        r"かんすう\s+(?P<name>\w+)\s*\((?P<args>.*?)\)\s*:",
+        r"(\w+)\s*を\s*(.+?)\s*で\s*(?:くりかえす|ふぉー|フォー)\s*:",
+        r"for \1 in \2:",
+    ),
+    (r"(.+?)\s*のあいだ\s*(?:くりかえす|ほわいる|ホワイル)\s*:", r"while \1:"),
+    (
+        r"(?:かんすう|でふ|デフ)\s+(?P<name>\w+)\s*\((?P<args>.*?)\)\s*:",
         r"def \g<name>(\g<args>):",
     ),
-    (r"かえす\s+(?P<val>.*)", r"return \g<val>"),
-    (r"こころみる\s*:", "try:"),
-    (r"しっぱいしたとき\s*:", "except Exception:"),
+    (r"(?:かえす|りたーん|リターン)\s+(?P<val>.*)", r"return \g<val>"),
+    (r"(?:こころみる|とらい|トライ)\s*:", "try:"),
+    (r"(?:しっぱいしたとき|えくせぷと|エクセプト)\s*:", "except Exception:"),
     (
         r"(?P<target>\w+)\s*に\s*(?P<val>.+?)\s*を\s*ついか",
         r"\g<target>.append(\g<val>)",
@@ -81,11 +96,16 @@ def transpile(source: str) -> str:
         code, marker, comment = line[len(indent) :].partition("#")
         trailing_space = code[len(code.rstrip()) :]
         code = code.rstrip().replace("！＝", "!=").translate(_SYMBOLS)
-        code = re.sub(r"(?<=\s)かつ(?=\s)", "and", code)
-        code = re.sub(r"(?<=\s)または(?=\s)", "or", code)
+        code = re.sub(r"(?<=\s)(?:かつ|あんど|アンド)(?=\s)", "and", code)
+        code = re.sub(r"(?<=\s)(?:または|おあ|オア)(?=\s)", "or", code)
         code = re.sub(
-            r"(?<!\w)(しん|ぎ)(?!\w)",
-            lambda match: "True" if match.group() == "しん" else "False",
+            r"(?<!\w)(?:しん|とぅるー|トゥルー)(?!\w)",
+            "True",
+            code,
+        )
+        code = re.sub(
+            r"(?<!\w)(?:ぎ|ふぉるす|フォルス)(?!\w)",
+            "False",
             code,
         )
         code = _BUILTIN_CALLS.sub(lambda match: _BUILTINS[match.group()], code)

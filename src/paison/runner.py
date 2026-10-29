@@ -11,11 +11,23 @@ def run_code(source: str, filename: str = "<paison>") -> None:
     namespace = {
         "__name__": "__main__",
         "しゅつりょく": print,
+        "ぷりんと": print,
+        "プリント": print,
         "にゅうりょく": input,
+        "いんぷっと": input,
+        "インプット": input,
         "かず": int,
+        "いんと": int,
+        "イント": int,
         "もじ": str,
+        "すとりんぐ": str,
+        "ストリング": str,
         "ながさ": len,
+        "れん": len,
+        "レン": len,
         "はいれつ": list,
+        "りすと": list,
+        "リスト": list,
     }
     exec(compiled, namespace)
 
