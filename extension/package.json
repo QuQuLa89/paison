@@ -13,6 +13,11 @@
   "main": "./extension.js",
   "activationEvents": ["onCommand:paison.runFile"],
   "contributes": {
+    "configurationDefaults": {
+      "[paison]": {
+        "editor.unicodeHighlight.ambiguousCharacters": false
+      }
+    },
     "languages": [
       {
         "id": "paison",

@@ -26,13 +26,13 @@ function activate(context) {
         return;
       }
 
-      const terminal = vscode.window.createTerminal({
-        name: "Paison",
-        shellPath: "paison",
-        shellArgs: [document.uri.fsPath],
-      });
-      context.subscriptions.push(terminal);
+      let terminal = vscode.window.terminals.find((t) => t.name === "Paison");
+      if (!terminal) {
+        terminal = vscode.window.createTerminal("Paison");
+        context.subscriptions.push(terminal);
+      }
       terminal.show();
+      terminal.sendText(`paison "${document.uri.fsPath}"`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Paisonの実行に失敗しました: ${message}`);

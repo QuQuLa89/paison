@@ -4,5 +4,8 @@
   },
   "code-runner.executorMap": {
     "paison": "paison"
+  },
+  "[paison]": {
+    "editor.unicodeHighlight.ambiguousCharacters": false
   }
 }
