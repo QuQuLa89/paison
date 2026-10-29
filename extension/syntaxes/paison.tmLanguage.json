@@ -40,18 +40,6 @@
           "begin": "‘",
           "end": "’|$",
           "patterns": [{ "include": "#escapes" }]
-        },
-        {
-          "name": "string.quoted.double.paison",
-          "begin": "「",
-          "end": "」|$",
-          "patterns": [{ "include": "#escapes" }]
-        },
-        {
-          "name": "string.quoted.double.paison",
-          "begin": "『",
-          "end": "』|$",
-          "patterns": [{ "include": "#escapes" }]
         }
       ]
     },

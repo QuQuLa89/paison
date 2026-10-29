@@ -20,15 +20,45 @@ class TranspilerTests(unittest.TestCase):
         return output.getvalue()
 
     def test_print(self):
+        for source in (
+            'しゅつりょく（"Hello World!"）',
+            'しゅつりょく("Hello World!")',
+            "しゅつりょく（“Hello World!”）",
+            "しゅつりょく（‘Hello World!’）",
+        ):
+            with self.subTest(source=source):
+                quote = "'" if "‘" in source else '"'
+                self.assertEqual(
+                    transpile(source), f"print({quote}Hello World!{quote})"
+                )
+                self.assertEqual(self.execute(source), "Hello World!\n")
+
+    def test_print_function_arguments(self):
+        source = 'しゅつりょく（“一”, “二”, sep=" / ", end="!"）'
+        self.assertEqual(transpile(source), 'print("一", "二", sep=" / ", end="!")')
+        self.assertEqual(self.execute(source), "一 / 二!")
+        self.assertEqual(self.execute("しゅつりょく（）"), "\n")
         self.assertEqual(
-            transpile("しゅつりょく 「Hello World!」"), 'print("Hello World!")'
-        )
-        self.assertEqual(
-            self.execute("しゅつりょく 「Hello World!」"), "Hello World!\n"
+            self.execute("しゅつりょく（もじ（しゅつりょく（１）））"),
+            "1\nNone\n",
         )
 
+    def test_print_requires_parentheses(self):
+        source = "しゅつりょく 1"
+        self.assertEqual(transpile(source), source)
+        with self.assertRaises(SyntaxError):
+            self.execute(source)
+
+    def test_removed_string_delimiters(self):
+        for left, right in (("\u300c", "\u300d"), ("\u300e", "\u300f")):
+            with self.subTest(left=left):
+                source = f"しゅつりょく（{left}本文{right}）"
+                self.assertEqual(transpile(source), f"print({left}本文{right})")
+                with self.assertRaises(SyntaxError):
+                    self.execute(source)
+
     def test_variable_assignment(self):
-        source = "なまえ ＝ 「QuQuLa89」\nしゅつりょく なまえ"
+        source = "なまえ ＝ “QuQuLa89”\nしゅつりょく（なまえ）"
         self.assertEqual(transpile(source), 'なまえ = "QuQuLa89"\nprint(なまえ)')
         self.assertEqual(self.execute(source), "QuQuLa89\n")
 
@@ -36,9 +66,9 @@ class TranspilerTests(unittest.TestCase):
         source = (
             "ねんれい ＝ 20\n"
             "もし ねんれい ＞＝ 20 ならば：\n"
-            "    しゅつりょく 「成人です」\n"
+            "    しゅつりょく（“成人です”）\n"
             "ちがうなら：\n"
-            "    しゅつりょく 「未成年です」"
+            "    しゅつりょく（“未成年です”）"
         )
         self.assertEqual(self.execute(source), "成人です\n")
         self.assertEqual(
@@ -70,14 +100,12 @@ class TranspilerTests(unittest.TestCase):
         )
         for value, expected, output in cases:
             with self.subTest(value=value):
-                source = f"値 ＝ {value}\nしゅつりょく 値"
+                source = f"値 ＝ {value}\nしゅつりょく（値）"
                 self.assertEqual(transpile(source), f"値 = {expected}\nprint(値)")
                 self.assertEqual(self.execute(source), output)
 
         content = "０１２３４５６７８９．"
         for left, right in (
-            ("「", "」"),
-            ("『", "』"),
             ('"', '"'),
             ("'", "'"),
             ('"""', '"""'),
@@ -87,7 +115,8 @@ class TranspilerTests(unittest.TestCase):
         ):
             with self.subTest(left=left):
                 self.assertEqual(
-                    self.execute(f"しゅつりょく {left}{content}{right}"), content + "\n"
+                    self.execute(f"しゅつりょく（{left}{content}{right}）"),
+                    content + "\n",
                 )
 
         source = f"値 ＝ ３．１４ # {content}"
@@ -97,11 +126,11 @@ class TranspilerTests(unittest.TestCase):
         source = (
             "値 ＝ 2\n"
             "もし 値 ＝＝ 1 ならば：\n"
-            "　しゅつりょく 「一」\n"
+            "　しゅつりょく（“一”）\n"
             "それとも 値 ＝＝ 2 ならば：\n"
-            "　しゅつりょく 「二」\n"
+            "　しゅつりょく（“二”）\n"
             "ちがうなら：\n"
-            "　しゅつりょく 「その他」"
+            "　しゅつりょく（“その他”）"
         )
         self.assertEqual(self.execute(source), "二\n")
         self.assertIn('    print("二")', transpile(source))
@@ -113,7 +142,7 @@ class TranspilerTests(unittest.TestCase):
             "　合計 ＝ 合計 ＋ 数\n"
             "合計 ＜ 5 のあいだ くりかえす：\n"
             "　合計 ＝ 合計 ＋ 1\n"
-            "しゅつりょく 合計"
+            "しゅつりょく（合計）"
         )
         self.assertEqual(self.execute(source), "5\n")
 
@@ -121,7 +150,7 @@ class TranspilerTests(unittest.TestCase):
         source = (
             "ぎん ＝ しん\n"
             "もし ぎん かつ ぎ または しん ならば：\n"
-            "　しゅつりょく ぎ"
+            "　しゅつりょく（ぎ）"
         )
         self.assertEqual(self.execute(source), "False\n")
         self.assertIn("ぎん = True", transpile(source))
@@ -129,47 +158,49 @@ class TranspilerTests(unittest.TestCase):
     def test_literal_contents_are_preserved(self):
         content = "もし しん かつ ぎ ならば：　＝＋！＝ # しゅつりょく"
         for source in (
-            f"しゅつりょく 「{content}」",
-            f"しゅつりょく 『{content}』",
-            f'しゅつりょく "{content}"',
-            f"しゅつりょく '{content}'",
-            f'しゅつりょく """{content}"""',
-            f"しゅつりょく '''{content}'''",
+            f'しゅつりょく（"{content}"）',
+            f"しゅつりょく（'{content}'）",
+            f'しゅつりょく（"""{content}"""）',
+            f"しゅつりょく（'''{content}'''）",
+            f"しゅつりょく（“{content}”）",
+            f"しゅつりょく（‘{content}’）",
         ):
             with self.subTest(source=source):
                 self.assertEqual(self.execute(source), content + "\n")
 
     def test_quotes_backslashes_and_multiline_literals(self):
         self.assertEqual(
-            self.execute('しゅつりょく 「"引用" C:\\sample」'),
+            self.execute(r'しゅつりょく（“"引用" C:\\sample”）'),
             '"引用" C:\\sample\n',
         )
         self.assertEqual(
-            self.execute("しゅつりょく 『一行目\n　二行目 '''』"),
+            self.execute('しゅつりょく（"""一行目\n　二行目 \'\'\'"""）'),
             "一行目\n　二行目 '''\n",
         )
         self.assertEqual(
-            self.execute(r'しゅつりょく "引用: \"しん＝ぎ\""'),
+            self.execute(r'しゅつりょく（"引用: \"しん＝ぎ\""）'),
             '引用: "しん＝ぎ"\n',
         )
 
     def test_comments(self):
-        source = "# 「未完の文字列 しん＝ぎ\n" "しゅつりょく 「# 本文」 # しん ＝ ぎ"
+        source = "# “未完の文字列 しん＝ぎ\n" "しゅつりょく（“# 本文”） # しん ＝ ぎ"
         self.assertEqual(self.execute(source), "# 本文\n")
         self.assertTrue(transpile(source).endswith("# しん ＝ ぎ"))
 
     def test_empty_lines_and_trailing_newline(self):
         self.assertEqual(transpile(""), "")
         self.assertEqual(transpile("\n\n"), "\n\n")
-        self.assertEqual(transpile("しゅつりょく 1\r\n"), "print(1)\n")
+        self.assertEqual(transpile("しゅつりょく（1）\r\n"), "print(1)\n")
 
     def test_placeholder_name_collision(self):
-        source = "__paison_literal_0__ ＝ 「値」\nしゅつりょく __paison_literal_0__"
+        source = "__paison_literal_0__ ＝ “値”\nしゅつりょく（__paison_literal_0__）"
         self.assertEqual(self.execute(source), "値\n")
 
     def test_function_def_and_return(self):
         source = (
-            "かんすう 合計(左, 右)：\n" "　かえす 左 ＋ 右\n" "しゅつりょく 合計(2, 3)"
+            "かんすう 合計(左, 右)：\n"
+            "　かえす 左 ＋ 右\n"
+            "しゅつりょく（合計(2, 3)）"
         )
         self.assertEqual(
             transpile(source),
@@ -180,22 +211,22 @@ class TranspilerTests(unittest.TestCase):
     def test_try_except(self):
         source = (
             "こころみる：\n"
-            "　しゅつりょく かず(「数字ではありません」)\n"
+            "　しゅつりょく（かず(“数字ではありません”)）\n"
             "しっぱいしたとき：\n"
-            "　しゅつりょく 「変換に失敗しました」"
+            "　しゅつりょく（“変換に失敗しました”）"
         )
         self.assertEqual(self.execute(source), "変換に失敗しました\n")
         self.assertEqual(
-            self.execute(source.replace("「数字ではありません」", "「42」")),
+            self.execute(source.replace("“数字ではありません”", "“42”")),
             "42\n",
         )
 
     def test_list_append(self):
         source = (
             "項目 ＝ []\n"
-            "項目 に 「最初」 を ついか\n"
+            "項目 に “最初” を ついか\n"
             "項目に もじ(2) をついか # 追加します\n"
-            "しゅつりょく 項目"
+            "しゅつりょく（項目）"
         )
         self.assertIn('項目.append("最初")', transpile(source))
         self.assertEqual(self.execute(source), "['最初', '2']\n")
@@ -205,7 +236,7 @@ class TranspilerTests(unittest.TestCase):
             "かんすう 二倍（値）：\n"
             "　かえす 値 ＊ 2\n"
             "項目 ＝ ［二倍（3）］\n"
-            "しゅつりょく 項目［0］"
+            "しゅつりょく（項目［0］）"
         )
         self.assertEqual(self.execute(source), "6\n")
 
@@ -214,33 +245,41 @@ class TranspilerTests(unittest.TestCase):
         for left, right in (("“", "”"), ("‘", "’")):
             with self.subTest(left=left):
                 self.assertEqual(
-                    self.execute(f"しゅつりょく {left}{content}{right}"),
+                    self.execute(f"しゅつりょく（{left}{content}{right}）"),
                     content + "\n",
                 )
-        self.assertEqual(self.execute('しゅつりょく “a "b"”'), 'a "b"\n')
-        self.assertEqual(self.execute("しゅつりょく ‘it's’"), "it's\n")
-        self.assertEqual(self.execute(r"しゅつりょく “一\n二”"), "一\n二\n")
+        self.assertEqual(self.execute('しゅつりょく（“a "b"”）'), 'a "b"\n')
+        self.assertEqual(self.execute("しゅつりょく（‘it's’）"), "it's\n")
+        self.assertEqual(self.execute(r"しゅつりょく（“一\n二”）"), "一\n二\n")
         self.assertEqual(
-            self.execute(r"しゅつりょく “引用: \"文字\"”"), '引用: "文字"\n'
+            self.execute(r"しゅつりょく（“引用: \"文字\"”）"), '引用: "文字"\n'
         )
         comment = "# “かず（1）” ‘ながさ（［］）’"
         self.assertEqual(transpile(comment), comment)
 
     def test_inline_builtins_and_identifier_boundaries(self):
         source = (
-            "しゅつりょく もじ(かず（「42」） ＋ 1)\n"
-            "しゅつりょく ながさ（はいれつ（「abc」））"
+            "しゅつりょく（もじ(かず（“42”） ＋ 1)）\n"
+            "しゅつりょく（ながさ（はいれつ（“abc”）））"
         )
         self.assertEqual(self.execute(source), "43\n3\n")
-        for name in ("かず", "もじ", "ながさ", "はいれつ", "にゅうりょく"):
+        for name in (
+            "しゅつりょく",
+            "かず",
+            "もじ",
+            "ながさ",
+            "はいれつ",
+            "にゅうりょく",
+        ):
             with self.subTest(name=name):
                 identifier = f"独自_{name}"
                 self.assertEqual(transpile(f"{identifier}(1)"), f"{identifier}(1)")
+                self.assertEqual(transpile(f"{identifier}（1）"), f"{identifier}(1)")
                 self.assertEqual(transpile(f"{name}の値(1)"), f"{name}の値(1)")
                 self.assertEqual(transpile(name), name)
         with patch("builtins.input", return_value="7") as read_input:
             self.assertEqual(
-                self.execute("しゅつりょく かず(にゅうりょく（「数：」）)"), "7\n"
+                self.execute("しゅつりょく（かず(にゅうりょく（“数：”）)）"), "7\n"
             )
         read_input.assert_called_once_with("数：")
 
@@ -255,7 +294,7 @@ class RunnerTests(unittest.TestCase):
             "長さ ＝ ながさ\n"
             "配列 ＝ はいれつ\n"
             "かんすう 表示():\n"
-            "    出力(文字列(整数(入力(「数：」)) ＋ 長さ(配列(「ab」))))\n"
+            "    出力(文字列(整数(入力(“数：”)) ＋ 長さ(配列(“ab”))))\n"
             "表示()"
         )
         output = io.StringIO()
@@ -268,7 +307,7 @@ class RunnerTests(unittest.TestCase):
     def test_script_main_namespace(self):
         output = io.StringIO()
         with redirect_stdout(output):
-            run_code("しゅつりょく __name__")
+            run_code("しゅつりょく（__name__）")
         self.assertEqual(output.getvalue(), "__main__\n")
 
     def test_syntax_error_filename(self):
@@ -279,7 +318,7 @@ class RunnerTests(unittest.TestCase):
     def test_utf8_file(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "sample.pai"
-            path.write_text("しゅつりょく 「こんにちは」", encoding="utf-8")
+            path.write_text("しゅつりょく（“こんにちは”）", encoding="utf-8")
             output = io.StringIO()
             with redirect_stdout(output):
                 run_file(str(path))
@@ -292,7 +331,7 @@ class CliTests(unittest.TestCase):
             with self.subTest(flag=flag):
                 output = io.StringIO()
                 with redirect_stdout(output):
-                    result = main([flag, "しゅつりょく 「こんにちは」"])
+                    result = main([flag, "しゅつりょく（“こんにちは”）"])
                 self.assertEqual(result, 0)
                 self.assertEqual(output.getvalue(), "こんにちは\n")
 
@@ -305,7 +344,7 @@ class CliTests(unittest.TestCase):
         execute_file.assert_called_once_with("sample.pai")
 
     def test_invalid_arguments(self):
-        for argv in ([], ["sample.pai", "-c", "しゅつりょく 1"], ["-c"]):
+        for argv in ([], ["sample.pai", "-c", "しゅつりょく（1）"], ["-c"]):
             with self.subTest(argv=argv), redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as error:
                     main(argv)

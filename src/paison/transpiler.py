@@ -12,8 +12,6 @@ _LITERALS = re.compile(
             r"'(?:\\.|[^'\\\r\n])*'",
             r"“(?:\\.|[^”\\\r\n])*”",
             r"‘(?:\\.|[^’\\\r\n])*’",
-            r"「.*?」",
-            r"『.*?』",
             r"\#[^\r\n]*",
         )
     ),
@@ -23,6 +21,7 @@ _SYMBOLS = str.maketrans(
     "＝：＞＜＋－＊／（）［］０１２３４５６７８９．", "=:><+-*/()[]0123456789."
 )
 _BUILTINS = {
+    "しゅつりょく": "print",
     "かず": "int",
     "もじ": "str",
     "ながさ": "len",
@@ -31,7 +30,6 @@ _BUILTINS = {
 }
 _BUILTIN_CALLS = re.compile(r"(?<!\w)(" + "|".join(_BUILTINS) + r")(?=\s*\()")
 _STATEMENTS = (
-    (r"しゅつりょく\s+(.+)", r"print(\1)"),
     (r"もし\s+(.+?)\s*ならば\s*:", r"if \1:"),
     (r"それとも\s+(.+?)\s*ならば\s*:", r"elif \1:"),
     (r"ちがうなら\s*:", "else:"),
@@ -62,16 +60,7 @@ def transpile(source: str) -> str:
         literal = match.group()
         if literal.startswith("#"):
             return literal
-        if literal.startswith("「"):
-            content = literal[1:-1]
-            content = content.replace("\\", "\\\\").replace('"', '\\"')
-            content = content.replace("\r", "\\r").replace("\n", "\\n")
-            literal = '"' + content + '"'
-        elif literal.startswith("『"):
-            content = literal[1:-1]
-            content = content.replace("\\", "\\\\").replace("'", "\\'")
-            literal = "'''" + content + "'''"
-        elif literal.startswith(("“", "‘")):
+        if literal.startswith(("“", "‘")):
             quote = '"' if literal.startswith("“") else "'"
             content = re.sub(
                 r"\\.|" + re.escape(quote),
