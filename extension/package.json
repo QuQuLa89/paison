@@ -1,0 +1,48 @@
+{
+  "name": "paison-vscode",
+  "displayName": "Paison Language Support",
+  "description": "Paisonの構文ハイライトとファイル実行を提供します。",
+  "version": "0.1.0",
+  "publisher": "QuQuLa89",
+  "author": "QuQuLa89",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onCommand:paison.runFile"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "paison",
+        "aliases": ["Paison", "paison"],
+        "extensions": [".pai"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "paison",
+        "scopeName": "source.paison",
+        "path": "./syntaxes/paison.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "paison.runFile",
+        "title": "Paison: ファイルを実行",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "paison.runFile",
+          "when": "resourceExtname == .pai",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

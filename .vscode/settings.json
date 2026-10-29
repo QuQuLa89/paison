@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "*.pai": "paison"
+  },
+  "code-runner.executorMap": {
+    "paison": "paison"
+  }
+}
