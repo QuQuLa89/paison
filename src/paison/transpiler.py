@@ -19,7 +19,9 @@ _LITERALS = re.compile(
     ),
     re.DOTALL,
 )
-_SYMBOLS = str.maketrans("＝：＞＜＋－＊／（）［］", "=:><+-*/()[]")
+_SYMBOLS = str.maketrans(
+    "＝：＞＜＋－＊／（）［］０１２３４５６７８９．", "=:><+-*/()[]0123456789."
+)
 _BUILTINS = {
     "かず": "int",
     "もじ": "str",

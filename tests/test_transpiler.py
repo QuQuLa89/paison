@@ -59,6 +59,40 @@ class TranspilerTests(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertEqual(transpile(source), expected)
 
+    def test_zenkaku_numbers(self):
+        cases = (
+            ("０", "0", "0\n"),
+            ("１２３４５６７８９０", "1234567890", "1234567890\n"),
+            ("３．１４", "3.14", "3.14\n"),
+            ("３.１4", "3.14", "3.14\n"),
+            ("．５", ".5", "0.5\n"),
+            ("－２．５ ＋ １", "-2.5 + 1", "-1.5\n"),
+        )
+        for value, expected, output in cases:
+            with self.subTest(value=value):
+                source = f"値 ＝ {value}\nしゅつりょく 値"
+                self.assertEqual(transpile(source), f"値 = {expected}\nprint(値)")
+                self.assertEqual(self.execute(source), output)
+
+        content = "０１２３４５６７８９．"
+        for left, right in (
+            ("「", "」"),
+            ("『", "』"),
+            ('"', '"'),
+            ("'", "'"),
+            ('"""', '"""'),
+            ("'''", "'''"),
+            ("“", "”"),
+            ("‘", "’"),
+        ):
+            with self.subTest(left=left):
+                self.assertEqual(
+                    self.execute(f"しゅつりょく {left}{content}{right}"), content + "\n"
+                )
+
+        source = f"値 ＝ ３．１４ # {content}"
+        self.assertEqual(transpile(source), f"値 = 3.14 # {content}")
+
     def test_elif_and_full_width_indentation(self):
         source = (
             "値 ＝ 2\n"
