@@ -23,7 +23,9 @@ class TranspilerTests(unittest.TestCase):
         self.assertEqual(
             transpile("しゅつりょく 「Hello World!」"), 'print("Hello World!")'
         )
-        self.assertEqual(self.execute("しゅつりょく 「Hello World!」"), "Hello World!\n")
+        self.assertEqual(
+            self.execute("しゅつりょく 「Hello World!」"), "Hello World!\n"
+        )
 
     def test_variable_assignment(self):
         source = "なまえ ＝ 「QuQuLa89」\nしゅつりょく なまえ"
@@ -118,10 +120,7 @@ class TranspilerTests(unittest.TestCase):
         )
 
     def test_comments(self):
-        source = (
-            "# 「未完の文字列 しん＝ぎ\n"
-            "しゅつりょく 「# 本文」 # しん ＝ ぎ"
-        )
+        source = "# 「未完の文字列 しん＝ぎ\n" "しゅつりょく 「# 本文」 # しん ＝ ぎ"
         self.assertEqual(self.execute(source), "# 本文\n")
         self.assertTrue(transpile(source).endswith("# しん ＝ ぎ"))
 
@@ -134,8 +133,104 @@ class TranspilerTests(unittest.TestCase):
         source = "__paison_literal_0__ ＝ 「値」\nしゅつりょく __paison_literal_0__"
         self.assertEqual(self.execute(source), "値\n")
 
+    def test_function_def_and_return(self):
+        source = (
+            "かんすう 合計(左, 右)：\n" "　かえす 左 ＋ 右\n" "しゅつりょく 合計(2, 3)"
+        )
+        self.assertEqual(
+            transpile(source),
+            "def 合計(左, 右):\n    return 左 + 右\nprint(合計(2, 3))",
+        )
+        self.assertEqual(self.execute(source), "5\n")
+
+    def test_try_except(self):
+        source = (
+            "こころみる：\n"
+            "　しゅつりょく かず(「数字ではありません」)\n"
+            "しっぱいしたとき：\n"
+            "　しゅつりょく 「変換に失敗しました」"
+        )
+        self.assertEqual(self.execute(source), "変換に失敗しました\n")
+        self.assertEqual(
+            self.execute(source.replace("「数字ではありません」", "「42」")),
+            "42\n",
+        )
+
+    def test_list_append(self):
+        source = (
+            "項目 ＝ []\n"
+            "項目 に 「最初」 を ついか\n"
+            "項目に もじ(2) をついか # 追加します\n"
+            "しゅつりょく 項目"
+        )
+        self.assertIn('項目.append("最初")', transpile(source))
+        self.assertEqual(self.execute(source), "['最初', '2']\n")
+
+    def test_full_width_brackets(self):
+        source = (
+            "かんすう 二倍（値）：\n"
+            "　かえす 値 ＊ 2\n"
+            "項目 ＝ ［二倍（3）］\n"
+            "しゅつりょく 項目［0］"
+        )
+        self.assertEqual(self.execute(source), "6\n")
+
+    def test_curly_quotes_and_literal_preservation(self):
+        content = "かんすう かえす こころみる しっぱいしたとき ［（）］ かず(1) #"
+        for left, right in (("“", "”"), ("‘", "’")):
+            with self.subTest(left=left):
+                self.assertEqual(
+                    self.execute(f"しゅつりょく {left}{content}{right}"),
+                    content + "\n",
+                )
+        self.assertEqual(self.execute('しゅつりょく “a "b"”'), 'a "b"\n')
+        self.assertEqual(self.execute("しゅつりょく ‘it's’"), "it's\n")
+        self.assertEqual(self.execute(r"しゅつりょく “一\n二”"), "一\n二\n")
+        self.assertEqual(
+            self.execute(r"しゅつりょく “引用: \"文字\"”"), '引用: "文字"\n'
+        )
+        comment = "# “かず（1）” ‘ながさ（［］）’"
+        self.assertEqual(transpile(comment), comment)
+
+    def test_inline_builtins_and_identifier_boundaries(self):
+        source = (
+            "しゅつりょく もじ(かず（「42」） ＋ 1)\n"
+            "しゅつりょく ながさ（はいれつ（「abc」））"
+        )
+        self.assertEqual(self.execute(source), "43\n3\n")
+        for name in ("かず", "もじ", "ながさ", "はいれつ", "にゅうりょく"):
+            with self.subTest(name=name):
+                identifier = f"独自_{name}"
+                self.assertEqual(transpile(f"{identifier}(1)"), f"{identifier}(1)")
+                self.assertEqual(transpile(f"{name}の値(1)"), f"{name}の値(1)")
+                self.assertEqual(transpile(name), name)
+        with patch("builtins.input", return_value="7") as read_input:
+            self.assertEqual(
+                self.execute("しゅつりょく かず(にゅうりょく（「数：」）)"), "7\n"
+            )
+        read_input.assert_called_once_with("数：")
+
 
 class RunnerTests(unittest.TestCase):
+    def test_japanese_builtin_aliases(self):
+        source = (
+            "出力 ＝ しゅつりょく\n"
+            "入力 ＝ にゅうりょく\n"
+            "整数 ＝ かず\n"
+            "文字列 ＝ もじ\n"
+            "長さ ＝ ながさ\n"
+            "配列 ＝ はいれつ\n"
+            "かんすう 表示():\n"
+            "    出力(文字列(整数(入力(「数：」)) ＋ 長さ(配列(「ab」))))\n"
+            "表示()"
+        )
+        output = io.StringIO()
+        with patch("builtins.input", return_value="5") as read_input:
+            with redirect_stdout(output):
+                run_code(source)
+        self.assertEqual(output.getvalue(), "7\n")
+        read_input.assert_called_once_with("数：")
+
     def test_script_main_namespace(self):
         output = io.StringIO()
         with redirect_stdout(output):

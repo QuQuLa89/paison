@@ -10,6 +10,8 @@ _LITERALS = re.compile(
             r"'''(?:\\.|(?!''').)*'''",
             r'"(?:\\.|[^"\\\r\n])*"',
             r"'(?:\\.|[^'\\\r\n])*'",
+            r"“(?:\\.|[^”\\\r\n])*”",
+            r"‘(?:\\.|[^’\\\r\n])*’",
             r"「.*?」",
             r"『.*?』",
             r"\#[^\r\n]*",
@@ -17,7 +19,15 @@ _LITERALS = re.compile(
     ),
     re.DOTALL,
 )
-_SYMBOLS = str.maketrans("＝：＞＜＋－＊／", "=:><+-*/")
+_SYMBOLS = str.maketrans("＝：＞＜＋－＊／（）［］", "=:><+-*/()[]")
+_BUILTINS = {
+    "かず": "int",
+    "もじ": "str",
+    "ながさ": "len",
+    "はいれつ": "list",
+    "にゅうりょく": "input",
+}
+_BUILTIN_CALLS = re.compile(r"(?<!\w)(" + "|".join(_BUILTINS) + r")(?=\s*\()")
 _STATEMENTS = (
     (r"しゅつりょく\s+(.+)", r"print(\1)"),
     (r"もし\s+(.+?)\s*ならば\s*:", r"if \1:"),
@@ -25,6 +35,17 @@ _STATEMENTS = (
     (r"ちがうなら\s*:", "else:"),
     (r"(\w+)\s*を\s*(.+?)\s*で\s*くりかえす\s*:", r"for \1 in \2:"),
     (r"(.+?)\s*のあいだ\s*くりかえす\s*:", r"while \1:"),
+    (
+        r"かんすう\s+(?P<name>\w+)\s*\((?P<args>.*?)\)\s*:",
+        r"def \g<name>(\g<args>):",
+    ),
+    (r"かえす\s+(?P<val>.*)", r"return \g<val>"),
+    (r"こころみる\s*:", "try:"),
+    (r"しっぱいしたとき\s*:", "except Exception:"),
+    (
+        r"(?P<target>\w+)\s*に\s*(?P<val>.+?)\s*を\s*ついか",
+        r"\g<target>.append(\g<val>)",
+    ),
 )
 
 
@@ -48,6 +69,14 @@ def transpile(source: str) -> str:
             content = literal[1:-1]
             content = content.replace("\\", "\\\\").replace("'", "\\'")
             literal = "'''" + content + "'''"
+        elif literal.startswith(("“", "‘")):
+            quote = '"' if literal.startswith("“") else "'"
+            content = re.sub(
+                r"\\.|" + re.escape(quote),
+                lambda match: "\\" + quote if match.group() == quote else match.group(),
+                literal[1:-1],
+            )
+            literal = quote + content + quote
         token = f"{prefix}{len(literals)}__"
         literals.append(literal)
         return token
@@ -68,17 +97,14 @@ def transpile(source: str) -> str:
             lambda match: "True" if match.group() == "しん" else "False",
             code,
         )
+        code = _BUILTIN_CALLS.sub(lambda match: _BUILTINS[match.group()], code)
         for pattern, replacement in _STATEMENTS:
             match = re.fullmatch(pattern, code)
             if match:
                 code = match.expand(replacement)
                 break
         lines.append(
-            indent.replace("\u3000", "    ")
-            + code
-            + trailing_space
-            + marker
-            + comment
+            indent.replace("\u3000", "    ") + code + trailing_space + marker + comment
         )
 
     result = "\n".join(lines)
