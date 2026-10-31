@@ -179,6 +179,67 @@ class TranspilerTests(unittest.TestCase):
         )
         self.assertEqual(self.execute(source), "5\n")
 
+    def test_python_aligned_loops(self):
+        for_header_aliases = (
+            "くりかえす 数 のなかの",
+            "くりかえす 数 のなか",
+            "くりかえす 数 で",
+            "ふぉー 数 いん",
+            "フォー 数 イン",
+            "ふぉー 数 イン",
+            "フォー 数 いん",
+        )
+        expected = (
+            "合計 = 0\n"
+            "for 数 in [1, 2, 3]:\n"
+            "    合計 = 合計 + 数\n"
+            "回数 = 0\n"
+            "while 回数 < 3:\n"
+            "    回数 = 回数 + 1\n"
+            "print(合計, 回数)"
+        )
+        for for_header in for_header_aliases:
+            for while_keyword in ("あいだ", "つづける", "ほわいる", "ホワイル"):
+                with self.subTest(for_header=for_header, while_keyword=while_keyword):
+                    source = (
+                        "合計 ＝ ０\n"
+                        f"{for_header} ［１, ２, ３］：\n"
+                        "　合計 ＝ 合計 ＋ 数\n"
+                        "回数 ＝ ０\n"
+                        f"{while_keyword} 回数 ＜ ３：\n"
+                        "　回数 ＝ 回数 ＋ １\n"
+                        "しゅつりょく（合計, 回数）"
+                    )
+                    self.assertEqual(transpile(source), expected)
+                    self.assertEqual(self.execute(source), "6 3\n")
+
+    def test_python_aligned_nested_loops(self):
+        source = (
+            "合計　＝　０\n"
+            "くりかえす　数　のなかの　［１,　２］：　# 外側のループ\n"
+            "　回数　＝　０\n"
+            "　ほわいる　回数　＜　数：\n"
+            "　　合計　＝　合計　＋　数\n"
+            "　　回数　＝　回数　＋　１\n"
+            "しゅつりょく（合計）"
+        )
+        self.assertIn(
+            "for 数 in [1, 2]: # 外側のループ\n    回数 = 0\n    while 回数 < 数:",
+            transpile(source),
+        )
+        self.assertEqual(self.execute(source), "5\n")
+
+    def test_python_aligned_loops_skip_empty_and_false_bodies(self):
+        source = (
+            "回数 ＝ ０\n"
+            "ふぉー 数 いん ［］：\n"
+            "　回数 ＝ 回数 ＋ １\n"
+            "あいだ ぎ：\n"
+            "　回数 ＝ 回数 ＋ １\n"
+            "しゅつりょく（回数）"
+        )
+        self.assertEqual(self.execute(source), "0\n")
+
     def test_boolean_operators_and_identifier_boundaries(self):
         source = (
             "ぎん ＝ しん\n"
@@ -363,6 +424,7 @@ class TranspilerTests(unittest.TestCase):
         content = (
             "でふ デフ りたーん リターン いふ イフ えりふ エリフ えるす エルス "
             "ふぉー フォー ほわいる ホワイル とらい トライ えくせぷと エクセプト "
+            "あいだ つづける いん イン のなかの のなか "
             "とぅるー トゥルー ふぉるす フォルス あんど アンド おあ オア "
             "ぷりんと プリント いんぷっと インプット いんと イント "
             "すとりんぐ ストリング れん レン りすと リスト"
