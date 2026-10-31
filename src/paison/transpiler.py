@@ -18,7 +18,7 @@ _LITERALS = re.compile(
     re.DOTALL,
 )
 _SYMBOLS = str.maketrans(
-    "＝：＞＜＋－＊／（）［］０１２３４５６７８９．", "=:><+-*/()[]0123456789."
+    "＝：＞＜＋－＊／（）［］｛｝０１２３４５６７８９．", "=:><+-*/()[]{}0123456789."
 )
 _BUILTINS = {
     "しゅつりょく": "print",
@@ -39,6 +39,30 @@ _BUILTINS = {
     "にゅうりょく": "input",
     "いんぷっと": "input",
     "インプット": "input",
+    "はんい": "range",
+    "れんじ": "range",
+    "レンジ": "range",
+    "しょうすう": "float",
+    "ふろーと": "float",
+    "フロート": "float",
+    "しんぎ": "bool",
+    "ぶーる": "bool",
+    "ブール": "bool",
+    "ごうけい": "sum",
+    "さむ": "sum",
+    "サム": "sum",
+    "さいだい": "max",
+    "まっくす": "max",
+    "マックス": "max",
+    "さいしょう": "min",
+    "みん": "min",
+    "ミン": "min",
+    "ぜったいち": "abs",
+    "あぶす": "abs",
+    "アブス": "abs",
+    "じしょ": "dict",
+    "でぃくと": "dict",
+    "ディクト": "dict",
 }
 _BUILTIN_CALLS = re.compile(r"(?<!\w)(" + "|".join(_BUILTINS) + r")(?=\s*\()")
 _STATEMENTS = (
@@ -66,6 +90,9 @@ _STATEMENTS = (
     (r"(?:かえす|りたーん|リターン)\s+(?P<val>.*)", r"return \g<val>"),
     (r"(?:こころみる|とらい|トライ)\s*:", "try:"),
     (r"(?:しっぱいしたとき|えくせぷと|エクセプト)\s*:", "except Exception:"),
+    (r"(?:ぬける|やめる|ぶれーく|ブレーク)", "break"),
+    (r"(?:つぎへ|とばす|こんてぃにゅー|コンティニュー)", "continue"),
+    (r"(?:なにもしない|ぱす|パス)", "pass"),
     (
         r"(?P<target>\w+)\s*に\s*(?P<val>.+?)\s*を\s*ついか",
         r"\g<target>.append(\g<val>)",
@@ -119,12 +146,16 @@ def transpile(source: str) -> str:
             "False",
             code,
         )
+        code = re.sub(r"(?<!\w)(?:なし|のん|ノン)(?!\w)", "None", code)
+        code = re.sub(r"(?<=\s)(?:でない|のっと|ノット)(?=\s)", "not", code)
+        code = re.sub(r"(?<!\w)(?:のっと|ノット)(?=\s)", "not", code)
         code = _BUILTIN_CALLS.sub(lambda match: _BUILTINS[match.group()], code)
         for pattern, replacement in _STATEMENTS:
             match = re.fullmatch(pattern, code)
             if match:
                 code = match.expand(replacement)
                 break
+        code = re.sub(r"(?<=\s)(?:のなかに|ふくまれる|いん|イン)(?=\s)", "in", code)
         lines.append(
             indent.replace("\u3000", "    ") + code + trailing_space + marker + comment
         )

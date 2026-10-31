@@ -249,6 +249,132 @@ class TranspilerTests(unittest.TestCase):
         self.assertEqual(self.execute(source), "False\n")
         self.assertIn("ぎん = True", transpile(source))
 
+    def test_loop_control_statements(self):
+        for stop in ("ぬける", "やめる", "ぶれーく", "ブレーク"):
+            for skip in ("つぎへ", "とばす", "こんてぃにゅー", "コンティニュー"):
+                for header in (
+                    "ふぉー 数 いん はんい（１, ８）：\n",
+                    "数 ＝ ０\nあいだ 数 ＜ ７：\n　数 ＝ 数 ＋ １\n",
+                ):
+                    with self.subTest(stop=stop, skip=skip, header=header):
+                        source = (
+                            "値 ＝ ［］\n" + header + "　もし 数 ＝＝ ５：\n"
+                            f"　　{stop} # ここで終了します\n"
+                            "　もし 数 % ２ ＝＝ ０：\n"
+                            f"　　{skip}\n"
+                            "　値 に 数 を ついか\n"
+                            "しゅつりょく（値）"
+                        )
+                        self.assertEqual(self.execute(source), "[1, 3]\n")
+        for keyword in ("なにもしない", "ぱす", "パス"):
+            with self.subTest(keyword=keyword):
+                source = (
+                    f"かんすう 未実装（）：\n　{keyword}\nしゅつりょく（未実装（））"
+                )
+                self.assertEqual(self.execute(source), "None\n")
+
+    def test_math_and_collection_builtins(self):
+        cases = (
+            (("はんい", "れんじ", "レンジ"), "５, ０, －２", "[5, 3, 1]\n"),
+            (("しょうすう", "ふろーと", "フロート"), "“2.5”", "2.5\n"),
+            (("しんぎ", "ぶーる", "ブール"), "［］", "False\n"),
+            (("ごうけい", "さむ", "サム"), "［１, ２, ３］, start=４", "10\n"),
+            (("さいだい", "まっくす", "マックス"), "－１, ３, ２", "3\n"),
+            (("さいしょう", "みん", "ミン"), "［－１, ３, ２］", "-1\n"),
+            (("ぜったいち", "あぶす", "アブス"), "－３．５", "3.5\n"),
+            (
+                ("じしょ", "でぃくと", "ディクト"),
+                "名前=“QuQuLa89”",
+                "{'名前': 'QuQuLa89'}\n",
+            ),
+        )
+        for aliases, arguments, expected in cases:
+            for alias in aliases:
+                for reference in (False, True):
+                    with self.subTest(alias=alias, reference=reference):
+                        name = "関数" if reference else alias
+                        expression = f"{name}（{arguments}）"
+                        if alias in ("はんい", "れんじ", "レンジ"):
+                            expression = f"はいれつ（{expression}）"
+                        source = f"しゅつりょく（{expression}）"
+                        if reference:
+                            source = f"関数 ＝ {alias}\n" + source
+                        self.assertEqual(self.execute(source), expected)
+        self.assertEqual(
+            self.execute("しゅつりょく（ごうけい（はんい（４）））"), "6\n"
+        )
+        self.assertEqual(self.execute("しゅつりょく（じしょ（））"), "{}\n")
+
+    def test_none_and_operators(self):
+        for constant in ("なし", "のん", "ノン"):
+            with self.subTest(constant=constant):
+                self.assertEqual(self.execute(f"しゅつりょく（{constant}）"), "None\n")
+        for negate in ("でない", "のっと", "ノット"):
+            for contains in ("のなかに", "ふくまれる", "いん", "イン"):
+                with self.subTest(negate=negate, contains=contains):
+                    source = (
+                        "値　＝　なし\n"
+                        f"もし　{negate}　値：\n"
+                        f"　しゅつりょく（２　{contains}　［１,　２］）\n"
+                        f"　しゅつりょく（３　{negate}　{contains}　［１,　２］）\n"
+                        f"　しゅつりょく（“鍵” {contains} ｛“鍵”： なし｝）\n"
+                        "判定 ＝ ［］\n"
+                        f"判定 に {negate} 値 を ついか\n"
+                        "しゅつりょく（判定）"
+                    )
+                    self.assertEqual(self.execute(source), "True\nTrue\nTrue\n[True]\n")
+        for negate in ("のっと", "ノット"):
+            with self.subTest(negate=negate):
+                self.assertEqual(transpile(f"{negate} ぎ"), "not False")
+                self.assertEqual(
+                    self.execute(f"しゅつりょく（{negate} しん, {negate} （ぎ））"),
+                    "False True\n",
+                )
+
+    def test_full_width_curly_brackets(self):
+        source = (
+            "データ　＝　｛“数列”： ［１, ２］, “詳細”： ｛“値”： なし｝｝\n"
+            "データ［“追加”］ ＝ じしょ（値=３）\n"
+            "しゅつりょく（データ［“数列”］, データ［“詳細”］［“値”］）\n"
+            "しゅつりょく（データ［“追加”］［“値”］, ｛１, ２｝ ＝＝ {1, 2}, ｛｝）"
+        )
+        self.assertEqual(self.execute(source), "[1, 2] None\n3 True {}\n")
+        self.assertEqual(transpile("［｛｝］"), "[{}]")
+
+    def test_new_keywords_and_symbols_are_preserved(self):
+        content = (
+            "ぬける やめる ぶれーく ブレーク つぎへ とばす こんてぃにゅー "
+            "コンティニュー なにもしない ぱす パス はんい れんじ レンジ "
+            "しょうすう ふろーと フロート しんぎ ぶーる ブール ごうけい さむ サム "
+            "さいだい まっくす マックス さいしょう みん ミン ぜったいち あぶす アブス "
+            "じしょ でぃくと ディクト なし のん ノン でない のっと ノット "
+            "のなかに ふくまれる いん イン ｛｝"
+        )
+        for left, right in (
+            ('"', '"'),
+            ("'", "'"),
+            ('"""', '"""'),
+            ("'''", "'''"),
+            ("“", "”"),
+            ("‘", "’"),
+        ):
+            with self.subTest(left=left):
+                self.assertEqual(
+                    self.execute(f"しゅつりょく（{left}{content}{right}）"),
+                    content + "\n",
+                )
+        for keyword in content.split()[:-1]:
+            with self.subTest(keyword=keyword):
+                for identifier in (f"独自_{keyword}", f"{keyword}の値"):
+                    source = f"{identifier} = 1\nprint({identifier})"
+                    self.assertEqual(transpile(source), source)
+                    self.assertEqual(transpile(f"{identifier}(1)"), f"{identifier}(1)")
+        comment = f"# {content}"
+        self.assertEqual(transpile(comment), comment)
+        self.assertEqual(
+            transpile(f"しゅつりょく（なし） {comment}"), f"print(None) {comment}"
+        )
+
     def test_literal_contents_are_preserved(self):
         content = "もし しん かつ ぎ ならば：　＝＋！＝ # しゅつりょく"
         for source in (
@@ -486,9 +612,14 @@ class RunnerTests(unittest.TestCase):
             ("プリント", "インプット", "イント", "ストリング", "レン", "リスト"),
         ):
             with self.subTest(aliases=aliases):
-                output_alias, input_alias, int_alias, str_alias, len_alias, list_alias = (
-                    aliases
-                )
+                (
+                    output_alias,
+                    input_alias,
+                    int_alias,
+                    str_alias,
+                    len_alias,
+                    list_alias,
+                ) = aliases
                 source = (
                     f"出力 ＝ {output_alias}\n"
                     f"入力 ＝ {input_alias}\n"
